@@ -19,6 +19,10 @@ public class Media {
     private String category; // profile, project, certificate, hero
     private LocalDateTime uploadedAt;
 
+    @Lob
+    @Basic(fetch = FetchType.LAZY)
+    private byte[] data;
+
     @PrePersist
     public void prePersist() {
         uploadedAt = LocalDateTime.now();
