@@ -22,12 +22,23 @@ const api = {
     return h;
   },
 
+  /** Parse response — always returns JSON, even on error status codes */
+  async _parse(res) {
+    const text = await res.text();
+    if (!text) return { success: false, message: `Server error (${res.status})` };
+    try {
+      return JSON.parse(text);
+    } catch {
+      return { success: false, message: text || `Server error (${res.status})` };
+    }
+  },
+
   /** Generic GET */
   async get(path, auth = false) {
     const res = await fetch(`${API_BASE}${path}`, {
       headers: this.headers(auth),
     });
-    return res.json();
+    return this._parse(res);
   },
 
   /** Generic POST */
@@ -37,7 +48,7 @@ const api = {
       headers: this.headers(auth),
       body: JSON.stringify(body),
     });
-    return res.json();
+    return this._parse(res);
   },
 
   /** Generic PUT */
@@ -47,7 +58,7 @@ const api = {
       headers: this.headers(auth),
       body: JSON.stringify(body),
     });
-    return res.json();
+    return this._parse(res);
   },
 
   /** Generic DELETE */
@@ -56,7 +67,7 @@ const api = {
       method: 'DELETE',
       headers: this.headers(auth),
     });
-    return res.json();
+    return this._parse(res);
   },
 
   /** Multipart form upload */
@@ -71,7 +82,7 @@ const api = {
       headers,
       body: formData,
     });
-    return res.json();
+    return this._parse(res);
   },
 
   /* ── Public Endpoints ── */

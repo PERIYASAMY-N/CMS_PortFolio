@@ -274,9 +274,10 @@ async function loadProfile() {
       renderSocialLinks(p.socialLinks);
     }
 
-    // Resume button
-    document.getElementById('resume-btn').href = 'http://localhost:8080/api/resume/download';
-    document.getElementById('about-resume-btn').href = 'http://localhost:8080/api/resume/download';
+    // Resume button — use API_BASE so it works in production too
+    const resumeUrl = `${API_BASE}/api/public/resume`;
+    document.getElementById('resume-btn').href = resumeUrl;
+    document.getElementById('about-resume-btn').href = resumeUrl;
 
   } catch (err) {
     console.error('Profile load error:', err);
@@ -650,8 +651,10 @@ function formatDate(dateStr) {
 
 function getMediaUrl(url) {
   if (!url) return '';
-  const base = url.startsWith('http') ? url : 'http://localhost:8080' + url;
-  return base + '?t=' + Date.now();
+  if (url.startsWith('http')) return url;
+  // Use the same API base as the rest of the app
+  const base = (typeof API_BASE !== 'undefined' ? API_BASE : window.API_BASE_URL) || 'http://localhost:8080';
+  return base + url + '?t=' + Date.now();
 }
 
 function formatDateRange(start, end, current) {

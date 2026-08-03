@@ -2,6 +2,9 @@
  * Admin Dashboard Logic
  */
 
+// Use the same API base URL as the rest of the app
+const ADMIN_API_BASE = (typeof API_BASE !== 'undefined' ? API_BASE : window.API_BASE_URL) || 'http://localhost:8080';
+
 /* ── UI Core ── */
 const ui = {
   toast(msg, type = 'success') {
@@ -100,9 +103,9 @@ const vProfile = {
       document.getElementById('p-bio').value = p.bio || '';
       document.getElementById('p-objective').value = p.careerObjective || '';
       document.getElementById('p-photo').value = p.profileImageUrl || '';
-      if(p.profileImageUrl) { document.getElementById('p-photo-preview').src = 'http://localhost:8080' + p.profileImageUrl; document.getElementById('p-photo-preview').style.display='block'; }
+      if(p.profileImageUrl) { document.getElementById('p-photo-preview').src = ADMIN_API_BASE + p.profileImageUrl; document.getElementById('p-photo-preview').style.display='block'; }
       document.getElementById('p-hero').value = p.heroBackgroundUrl || '';
-      if(p.heroBackgroundUrl) { document.getElementById('p-hero-preview').src = 'http://localhost:8080' + p.heroBackgroundUrl; document.getElementById('p-hero-preview').style.display='block'; }
+      if(p.heroBackgroundUrl) { document.getElementById('p-hero-preview').src = ADMIN_API_BASE + p.heroBackgroundUrl; document.getElementById('p-hero-preview').style.display='block'; }
       
       this.links = p.socialLinks || [];
       this.renderSocial();
@@ -133,7 +136,7 @@ const vProfile = {
         ui.toast('Uploading profile photo...');
         const fd = new FormData(); fd.append('file', photoFile);
         try {
-            const res = await fetch('http://localhost:8080/api/admin/profile/image', {
+            const res = await fetch(ADMIN_API_BASE + '/api/admin/profile/image',  {
                 method: 'PUT',
                 headers: { 'Authorization': 'Bearer ' + api.getToken() },
                 body: fd
@@ -152,7 +155,7 @@ const vProfile = {
         ui.toast('Uploading hero image...');
         const fd = new FormData(); fd.append('file', heroFile);
         try {
-            const res = await fetch('http://localhost:8080/api/admin/profile/hero-image', {
+            const res = await fetch(ADMIN_API_BASE + '/api/admin/profile/hero-image',  {
                 method: 'PUT',
                 headers: { 'Authorization': 'Bearer ' + api.getToken() },
                 body: fd
@@ -193,7 +196,7 @@ const vProfile = {
     const fd = new FormData(); fd.append('file', f);
     try {
       if (type === 'photo') {
-        const res = await fetch('http://localhost:8080/api/admin/profile/image', {
+        const res = await fetch(ADMIN_API_BASE + '/api/admin/profile/image',  {
           method: 'PUT',
           headers: { 'Authorization': 'Bearer ' + api.getToken() },
           body: fd
@@ -203,7 +206,7 @@ const vProfile = {
           document.getElementById('p-photo').value = newUrl;
           // Update preview with cache-buster
           const preview = document.getElementById('p-photo-preview');
-          preview.src = 'http://localhost:8080' + newUrl + '?t=' + Date.now();
+          preview.src = ADMIN_API_BASE + newUrl + '?t=' + Date.now();
           preview.style.display = 'block';
           fileInput.value = '';
           ui.toast('✅ Profile image saved to database!');
@@ -211,7 +214,7 @@ const vProfile = {
           ui.toast('Upload failed: ' + (res.message || 'Unknown error'), 'error');
         }
       } else {
-        const res = await fetch('http://localhost:8080/api/admin/profile/hero-image', {
+        const res = await fetch(ADMIN_API_BASE + '/api/admin/profile/hero-image',  {
           method: 'PUT',
           headers: { 'Authorization': 'Bearer ' + api.getToken() },
           body: fd
@@ -220,7 +223,7 @@ const vProfile = {
           const newUrl = res.data.heroBackgroundUrl;
           document.getElementById('p-hero').value = newUrl;
           const preview = document.getElementById('p-hero-preview');
-          preview.src = 'http://localhost:8080' + newUrl + '?t=' + Date.now();
+          preview.src = ADMIN_API_BASE + newUrl + '?t=' + Date.now();
           preview.style.display = 'block';
           fileInput.value = '';
           ui.toast('✅ Hero image saved to database!');
@@ -372,7 +375,7 @@ const vProjects = {
           for (let f of vProjects.selectedFiles) {
             let fd = new FormData(); fd.append('file', f);
              try {
-               await fetch(`http://localhost:8080/api/admin/projects/${projectId}/image`, {
+               await fetch(`${ADMIN_API_BASE}/api/admin/projects/${projectId}/image`, {
                  method: 'POST',
                  headers: { 'Authorization': 'Bearer ' + api.getToken() },
                  body: fd
@@ -427,7 +430,7 @@ const vProjects = {
     let html = '';
     // Render existing
     (this.currentImages||[]).forEach((img, i) => {
-      let srcUrl = img.imageUrl.startsWith('http') ? img.imageUrl : 'http://localhost:8080' + img.imageUrl;
+      let srcUrl = img.imageUrl.startsWith('http') ? img.imageUrl : ADMIN_API_BASE + img.imageUrl;
       srcUrl += '?t=' + Date.now();
       html += `<div style="position:relative; width:80px; height:80px; border:1px solid #ccc; display:flex; align-items:center; justify-content:center;">
         <img src="${srcUrl}" style="max-width:100%; max-height:100%;" />
@@ -460,7 +463,7 @@ const vProjects = {
         } catch (e) { console.error('Upload error', e); }
       } else {
         try {
-           const res = await fetch(`http://localhost:8080/api/admin/projects/${id}/image`, {
+           const res = await fetch(`${ADMIN_API_BASE}/api/admin/projects/${id}/image`, {
              method: 'POST',
              headers: { 'Authorization': 'Bearer ' + api.getToken() },
              body: fd
@@ -616,7 +619,7 @@ const vCerts = {
         <label>Certificate Image</label>
         <input type="hidden" id="c-img" class="form-control" value="${c?c.imageUrl||'':''}">
         <input type="file" id="c-img-file" accept="image/*" class="form-control" onchange="document.getElementById('c-img-preview').src=window.URL.createObjectURL(this.files[0]);document.getElementById('c-img-preview').style.display='block';">
-        <img id="c-img-preview" src="${c && c.imageUrl ? 'http://localhost:8080' + c.imageUrl : ''}" style="max-height: 100px; display: ${c && c.imageUrl ? 'block' : 'none'}; margin-top: 10px;" />
+        <img id="c-img-preview" src="${c && c.imageUrl ? ADMIN_API_BASE + c.imageUrl : ''}" style="max-height: 100px; display: ${c && c.imageUrl ? 'block' : 'none'}; margin-top: 10px;" />
         <button type="button" class="btn btn-outline" style="margin-top: 10px;" onclick="vCerts.uploadImage()">Upload Image</button>
       </div>
     `,`<button class="btn" onclick="ui.closeModal()">Cancel</button><button class="btn btn-primary" onclick="vCerts.save(${isEdit})">Save</button>`);
@@ -632,7 +635,7 @@ const vCerts = {
          ui.toast('Uploading certificate image...');
          const fd = new FormData(); fd.append('file', fileInput.files[0]);
          try {
-             await fetch(`http://localhost:8080/api/admin/certificates/${certId}/image`, {
+             await fetch(`${ADMIN_API_BASE}/api/admin/certificates/${certId}/image`, {
                  method: 'PUT',
                  headers: { 'Authorization': 'Bearer ' + api.getToken() },
                  body: fd
@@ -661,7 +664,7 @@ const vCerts = {
       } catch { ui.toast('Upload failed', 'error'); }
     } else {
       try {
-        const res = await fetch(`http://localhost:8080/api/admin/certificates/${id}/image`, {
+        const res = await fetch(`${ADMIN_API_BASE}/api/admin/certificates/${id}/image`, {
           method: 'PUT',
           headers: { 'Authorization': 'Bearer ' + api.getToken() },
           body: fd
@@ -707,7 +710,7 @@ const vAchieve = {
         <label>Achievement Image</label>
         <input type="hidden" id="a-img" class="form-control" value="${a?a.imageUrl||'':''}">
         <input type="file" id="a-img-file" accept="image/*" class="form-control" onchange="document.getElementById('a-img-preview').src=window.URL.createObjectURL(this.files[0]);document.getElementById('a-img-preview').style.display='block';">
-        <img id="a-img-preview" src="${a && a.imageUrl ? 'http://localhost:8080' + a.imageUrl : ''}" style="max-height: 100px; display: ${a && a.imageUrl ? 'block' : 'none'}; margin-top: 10px;" />
+        <img id="a-img-preview" src="${a && a.imageUrl ? ADMIN_API_BASE + a.imageUrl : ''}" style="max-height: 100px; display: ${a && a.imageUrl ? 'block' : 'none'}; margin-top: 10px;" />
         <button type="button" class="btn btn-outline" style="margin-top: 10px;" onclick="vAchieve.uploadImage()">Upload Image</button>
       </div>
     `,`<button class="btn" onclick="ui.closeModal()">Cancel</button><button class="btn btn-primary" onclick="vAchieve.save(${isEdit})">Save</button>`);
@@ -723,7 +726,7 @@ const vAchieve = {
          ui.toast('Uploading achievement image...');
          const fd = new FormData(); fd.append('file', fileInput.files[0]);
          try {
-             await fetch(`http://localhost:8080/api/admin/achievements/${achieveId}/image`, {
+             await fetch(`${ADMIN_API_BASE}/api/admin/achievements/${achieveId}/image`, {
                  method: 'PUT',
                  headers: { 'Authorization': 'Bearer ' + api.getToken() },
                  body: fd
@@ -752,7 +755,7 @@ const vAchieve = {
       } catch { ui.toast('Upload failed', 'error'); }
     } else {
       try {
-        const res = await fetch(`http://localhost:8080/api/admin/achievements/${id}/image`, {
+        const res = await fetch(`${ADMIN_API_BASE}/api/admin/achievements/${id}/image`, {
           method: 'PUT',
           headers: { 'Authorization': 'Bearer ' + api.getToken() },
           body: fd
@@ -805,7 +808,7 @@ const vResume = {
     document.getElementById('resume-table').innerHTML = (res.data||[]).map(r => `
       <tr style="background:${r.isActive? '#f0fdf4' : ''}">
         <td><strong>${r.version}</strong></td>
-        <td><a href="http://localhost:8080${r.fileUrl}" target="_blank">${r.fileName}</a></td>
+        <td><a href="${ADMIN_API_BASE}${r.fileUrl}" target="_blank">${r.fileName}</a></td>
         <td>${new Date(r.uploadedAt).toLocaleString()}</td>
         <td>${r.isActive ? '<span class="badge badge-success">Active</span>' : '<span class="badge" style="background:#e2e8f0;color:#64748b;">Archived</span>'}</td>
         <td>
@@ -821,7 +824,7 @@ const vResume = {
 const vMedia = {
   async load() {
     const res = await api.admin.media();
-    const mediaUrlBase = 'http://localhost:8080';
+    const mediaUrlBase = ADMIN_API_BASE;
     document.getElementById('media-grid').innerHTML = (res.data||[]).map(m => `
       <div class="media-item">
         <img src="${mediaUrlBase}${m.fileUrl}" alt="${m.fileName}">
