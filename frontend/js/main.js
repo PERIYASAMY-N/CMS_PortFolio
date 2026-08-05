@@ -17,6 +17,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   initBackToTop();
   document.getElementById('footer-year').textContent = new Date().getFullYear();
 
+  // Wake up Render backend (free tier sleeps after 15 min inactivity)
+  // Show a loading notice if it takes more than 3 seconds
+  const wakeTimer = setTimeout(() => {
+    const loading = document.getElementById('loading');
+    if (loading) {
+      const msg = loading.querySelector('p') || document.createElement('p');
+      msg.textContent = 'Starting server, please wait...';
+      msg.style.cssText = 'color:#888;font-size:0.9rem;margin-top:8px;';
+      loading.appendChild(msg);
+    }
+  }, 3000);
+
+  // Ping health endpoint to wake up backend before loading data
+  try { await fetch(`${API_BASE}/actuator/health`, { signal: AbortSignal.timeout(55000) }); } catch (_) {}
+  clearTimeout(wakeTimer);
+
   await Promise.allSettled([
     loadProfile(),
     loadSkills(),
@@ -182,7 +198,12 @@ function initSkillBars() {
 /* ── DATA LOADERS ── */
 async function loadProfile() {
   try {
-    const res = await api.profile();
+    let res = await api.profile();
+    // Retry once if backend returned an error (can happen during cold start)
+    if (!res.success) {
+      await new Promise(r => setTimeout(r, 3000));
+      res = await api.profile();
+    }
     if (!res.success) return;
     const p = res.data;
 
