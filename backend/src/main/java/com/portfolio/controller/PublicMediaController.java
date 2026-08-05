@@ -24,8 +24,9 @@ public class PublicMediaController {
         }
 
         HttpHeaders headers = new HttpHeaders();
-        if (media.getFileType() != null) {
-            headers.setContentType(MediaType.parseMediaType(media.getFileType()));
+        String fileType = media.getFileType();
+        if (fileType != null) {
+            headers.setContentType(MediaType.parseMediaType(fileType));
         }
         
         return new ResponseEntity<>(media.getData(), headers, HttpStatus.OK);
