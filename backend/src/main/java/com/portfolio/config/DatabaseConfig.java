@@ -33,22 +33,23 @@ public class DatabaseConfig {
 
         try {
             // Supports both postgres:// and postgresql:// URL schemes from Render/Supabase
+            // Port is optional — Render internal URLs omit it (defaults to 5432)
             Pattern pattern = Pattern.compile(
-                "^(?:postgres(?:ql)?)://([^:]+):(.+)@([^:@/]+):(\\d+)/(.+)$"
+                "^(?:postgres(?:ql)?)://([^:]+):(.+)@([^:@/]+)(?::(\\d+))?/(.+)$"
             );
             Matcher matcher = pattern.matcher(databaseUrl);
 
             if (!matcher.matches()) {
                 throw new RuntimeException(
-                    "DATABASE_URL format not recognized. Expected: postgres://user:pass@host:port/dbname. Got: " + databaseUrl
+                    "DATABASE_URL format not recognized. Expected: postgres://user:pass@host[:port]/dbname. Got: " + databaseUrl
                 );
             }
 
-            String username = matcher.group(1);
-            String password = matcher.group(2);
-            String host     = matcher.group(3);
-            int    port     = Integer.parseInt(matcher.group(4));
-            String dbName   = matcher.group(5);
+            String username  = matcher.group(1);
+            String password  = matcher.group(2);
+            String host      = matcher.group(3);
+            int    port      = matcher.group(4) != null ? Integer.parseInt(matcher.group(4)) : 5432;
+            String dbName    = matcher.group(5);
 
             String jdbcUrl = String.format("jdbc:postgresql://%s:%d/%s", host, port, dbName);
 
