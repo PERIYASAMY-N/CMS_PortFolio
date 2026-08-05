@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.net.MalformedURLException;
+import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -25,11 +25,26 @@ public class ResumeController {
 
     private final ResumeService resumeService;
 
-    // Public download
+    /**
+     * Public resume download.
+     * If the stored URL is a Cloudinary URL (https://), redirect to it directly.
+     * If it's a local path (/uploads/...), serve it from disk (local dev only).
+     */
     @GetMapping("/api/public/resume")
-    public ResponseEntity<Resource> download() throws MalformedURLException {
+    public ResponseEntity<?> download() throws Exception {
         Resume resume = resumeService.getActiveResume();
-        Path filePath = Paths.get(resume.getFileUrl().substring(1));
+        String fileUrl = resume.getFileUrl();
+
+        // Cloudinary URL — redirect browser to download directly from CDN
+        if (fileUrl != null && fileUrl.startsWith("https://")) {
+            return ResponseEntity
+                    .status(302)
+                    .location(URI.create(fileUrl))
+                    .build();
+        }
+
+        // Local path — serve from disk (development only)
+        Path filePath = Paths.get(fileUrl.substring(1));
         Resource resource = new UrlResource(filePath.toAbsolutePath().toUri());
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)
@@ -38,7 +53,6 @@ public class ResumeController {
                 .body(resource);
     }
 
-    // Admin - get info
     @GetMapping("/api/admin/resume")
     public ResponseEntity<ApiResponse<Resume>> getActive() {
         return ResponseEntity.ok(ApiResponse.success(resumeService.getActiveResume()));
@@ -49,7 +63,6 @@ public class ResumeController {
         return ResponseEntity.ok(ApiResponse.success(resumeService.getAllResumes()));
     }
 
-    // Admin - upload
     @PostMapping("/api/admin/resume/upload")
     public ResponseEntity<ApiResponse<Resume>> upload(@RequestParam("file") MultipartFile file) throws IOException {
         return ResponseEntity.ok(ApiResponse.success("Resume uploaded", resumeService.uploadResume(file)));
