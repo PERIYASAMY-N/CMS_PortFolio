@@ -43,8 +43,9 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/public/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/public/messages").permitAll()
-
                 .requestMatchers("/uploads/**").permitAll()
+                // Actuator health check (used by Render)
+                .requestMatchers("/actuator/health").permitAll()
                 // Admin endpoints
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
