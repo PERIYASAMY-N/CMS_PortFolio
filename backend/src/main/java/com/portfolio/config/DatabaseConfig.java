@@ -2,92 +2,98 @@ package com.portfolio.config;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 
 import javax.sql.DataSource;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.net.URI;
 
 @Configuration
 public class DatabaseConfig {
 
     /**
-     * This bean is active ONLY when the DATABASE_URL environment variable is set.
-     * On Render, DATABASE_URL is injected automatically from the linked PostgreSQL service.
-     * Locally, spring.datasource.* properties in application.properties are used instead.
+     * Active only when DATABASE_URL env var is present (Render production).
+     * Locally, spring.datasource.* from application.properties is used instead.
+     *
+     * Handles all Render URL formats:
+     *   postgres://user:pass@host/db
+     *   postgres://user:pass@host:5432/db
+     *   postgresql://user:pass@host/db
+     *   postgresql://user:pass@host:5432/db
      */
     @Bean
     @Primary
     @ConditionalOnExpression("#{systemEnvironment['DATABASE_URL'] != null}")
     public DataSource dataSource() {
-        String databaseUrl = System.getenv("DATABASE_URL");
+        String rawUrl = System.getenv("DATABASE_URL");
 
-        System.out.println("=== DATABASE CONFIG: Using DATABASE_URL env var ===");
+        System.out.println("=== DatabaseConfig: DATABASE_URL detected, building DataSource ===");
+        System.out.println("Raw URL: " + rawUrl);
 
-        if (databaseUrl == null || databaseUrl.isEmpty()) {
-            throw new RuntimeException("DATABASE_URL environment variable is not set!");
+        if (rawUrl == null || rawUrl.isBlank()) {
+            throw new IllegalStateException("DATABASE_URL env var is set but empty");
         }
 
         try {
-            // Supports both postgres:// and postgresql:// URL schemes from Render/Supabase
-            // Port is optional — Render internal URLs omit it (defaults to 5432)
-            Pattern pattern = Pattern.compile(
-                "^(?:postgres(?:ql)?)://([^:]+):(.+)@([^:@/]+)(?::(\\d+))?/(.+)$"
-            );
-            Matcher matcher = pattern.matcher(databaseUrl);
+            // Normalise scheme so java.net.URI can parse it
+            String normalised = rawUrl
+                .replaceFirst("^postgresql://", "postgres://")
+                .replaceFirst("^postgres://", "jdbc-parse://");
 
-            if (!matcher.matches()) {
-                throw new RuntimeException(
-                    "DATABASE_URL format not recognized. Expected: postgres://user:pass@host[:port]/dbname. Got: " + databaseUrl
-                );
+            URI uri = new URI(normalised);
+
+            String host   = uri.getHost();
+            int    port   = uri.getPort() == -1 ? 5432 : uri.getPort();
+            // dbName may carry a leading slash
+            String dbName = uri.getPath().replaceFirst("^/", "");
+
+            // userInfo = "username:password"
+            String userInfo = uri.getUserInfo();
+            if (userInfo == null || !userInfo.contains(":")) {
+                throw new IllegalStateException("Cannot parse username/password from DATABASE_URL");
             }
-
-            String username  = matcher.group(1);
-            String password  = matcher.group(2);
-            String host      = matcher.group(3);
-            int    port      = matcher.group(4) != null ? Integer.parseInt(matcher.group(4)) : 5432;
-            String dbName    = matcher.group(5);
+            // Split only on the FIRST colon — password may contain colons
+            int    colonIdx  = userInfo.indexOf(':');
+            String username  = userInfo.substring(0, colonIdx);
+            String password  = userInfo.substring(colonIdx + 1);
 
             String jdbcUrl = String.format("jdbc:postgresql://%s:%d/%s", host, port, dbName);
 
-            System.out.println("JDBC URL  : " + jdbcUrl);
-            System.out.println("Host      : " + host);
-            System.out.println("Port      : " + port);
-            System.out.println("Database  : " + dbName);
-            System.out.println("Username  : " + username);
+            System.out.println("JDBC URL : " + jdbcUrl);
+            System.out.println("Host     : " + host);
+            System.out.println("Port     : " + port);
+            System.out.println("Database : " + dbName);
+            System.out.println("Username : " + username);
 
-            HikariConfig config = new HikariConfig();
-            config.setJdbcUrl(jdbcUrl);
-            config.setUsername(username);
-            config.setPassword(password);
-            config.setDriverClassName("org.postgresql.Driver");
+            HikariConfig cfg = new HikariConfig();
+            cfg.setJdbcUrl(jdbcUrl);
+            cfg.setUsername(username);
+            cfg.setPassword(password);
+            cfg.setDriverClassName("org.postgresql.Driver");
 
-            // SSL mode: Render internal connections use 'prefer', external use 'require'
-            // Set DB_SSL_MODE=require on Render if using external/Supabase DB
+            // Render internal connections work with 'prefer'; set DB_SSL_MODE=require for external DBs
             String sslMode = System.getenv("DB_SSL_MODE");
-            if (sslMode == null) sslMode = "prefer";
-            config.addDataSourceProperty("sslmode", sslMode);
+            cfg.addDataSourceProperty("sslmode", sslMode != null ? sslMode : "prefer");
 
-            // Pool settings optimised for Render free tier (limited connections)
-            config.setMaximumPoolSize(3);
-            config.setMinimumIdle(1);
-            config.setConnectionTimeout(30000);
-            config.setIdleTimeout(600000);
-            config.setMaxLifetime(1800000);
-            config.setKeepaliveTime(60000);
+            // Conservative pool for Render free tier
+            cfg.setMaximumPoolSize(3);
+            cfg.setMinimumIdle(1);
+            cfg.setConnectionTimeout(30_000);
+            cfg.setIdleTimeout(600_000);
+            cfg.setMaxLifetime(1_800_000);
+            cfg.setKeepaliveTime(60_000);
 
-            System.out.println("=== DATABASE CONFIG: DataSource created successfully ===");
-            return new HikariDataSource(config);
+            System.out.println("=== DatabaseConfig: DataSource created successfully ===");
+            return new HikariDataSource(cfg);
 
-        } catch (RuntimeException e) {
-            System.out.println("DATABASE CONFIG ERROR: " + e.getMessage());
+        } catch (IllegalStateException e) {
+            System.out.println("DatabaseConfig ERROR: " + e.getMessage());
             throw e;
         } catch (Exception e) {
-            System.out.println("DATABASE CONFIG ERROR: " + e.getMessage());
-            throw new RuntimeException("Failed to configure database: " + e.getMessage(), e);
+            System.out.println("DatabaseConfig ERROR: " + e.getMessage());
+            throw new RuntimeException("Failed to build DataSource from DATABASE_URL: " + e.getMessage(), e);
         }
     }
 }
