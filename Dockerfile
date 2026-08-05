@@ -27,5 +27,5 @@ RUN mkdir -p /app/uploads
 # Expose port
 EXPOSE 8080
 
-# Run the application
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# Run the application with prod profile active
+ENTRYPOINT ["java", "-Dspring.profiles.active=prod", "-jar", "app.jar"]
