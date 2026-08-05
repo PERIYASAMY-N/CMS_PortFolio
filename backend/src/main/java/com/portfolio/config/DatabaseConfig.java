@@ -65,10 +65,12 @@ public class DatabaseConfig {
             config.setUsername(username);
             config.setPassword(password);
             config.setDriverClassName("org.postgresql.Driver");
-            // SSL properties required for Supabase
+            // SSL: required for external/cloud DBs (Supabase, Render external), skip for Render internal
+            String sslMode = System.getenv("DB_SSL_MODE");
+            if (sslMode == null) sslMode = "prefer";
             config.addDataSourceProperty("ssl", "true");
-            config.addDataSourceProperty("sslmode", "require");
-            // Pool settings optimized for Supabase free tier
+            config.addDataSourceProperty("sslmode", sslMode);
+            // Pool settings optimized for free tier
             config.setMaximumPoolSize(3);
             config.setMinimumIdle(1);
             config.setConnectionTimeout(30000);
