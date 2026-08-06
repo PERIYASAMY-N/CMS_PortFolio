@@ -22,7 +22,8 @@ public class ResumeService {
     private final FileStorageUtil fileStorageUtil;
 
     public Resume getActiveResume() {
-        return resumeRepository.findByIsActiveTrue()
+        // findFirst prevents NonUniqueResultException if multiple rows have isActive=true
+        return resumeRepository.findFirstByIsActiveTrueOrderByUploadedAtDesc()
                 .orElseThrow(() -> new EntityNotFoundException("No active resume found"));
     }
 
@@ -32,11 +33,8 @@ public class ResumeService {
 
     @Transactional
     public Resume uploadResume(MultipartFile file) throws IOException {
-        // Deactivate all existing resumes
-        resumeRepository.findAll().forEach(r -> {
-            r.setIsActive(false);
-            resumeRepository.save(r);
-        });
+        // Deactivate ALL existing resumes in one query (avoids partial updates)
+        resumeRepository.deactivateAll();
 
         String fileUrl = fileStorageUtil.storeFile(file, "resume");
         Resume resume = Resume.builder()
@@ -49,10 +47,9 @@ public class ResumeService {
         return resumeRepository.save(resume);
     }
 
+    @Transactional
     public void setActive(Long id) {
-        resumeRepository.findAll().forEach(r -> {
-            r.setIsActive(r.getId().equals(id));
-            resumeRepository.save(r);
-        });
+        resumeRepository.deactivateAll();
+        resumeRepository.activateById(id);
     }
 }

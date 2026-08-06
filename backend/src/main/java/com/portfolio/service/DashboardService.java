@@ -23,7 +23,7 @@ public class DashboardService {
         stats.setTotalSkills(skillRepository.count());
         stats.setTotalMessages(messageRepository.countByIsReadFalseAndIsArchivedFalse());
         stats.setTotalMedia(mediaRepository.count());
-        stats.setHasActiveResume(resumeRepository.findByIsActiveTrue().isPresent());
+        stats.setHasActiveResume(resumeRepository.findFirstByIsActiveTrueOrderByUploadedAtDesc().isPresent());
         return stats;
     }
 
